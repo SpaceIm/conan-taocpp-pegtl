@@ -26,24 +26,29 @@ class TaoCPPPEGTLConan(ConanFile):
             "gcc": "8",
             "Visual Studio": "15.7",
             "clang": "6",
-            "apple-clang": "10",
+            "apple-clang": "11",
         }
 
     def validate(self):
         if self.settings.compiler.get_safe("cppstd"):
             tools.check_min_cppstd(self, "17")
 
-        # def lazy_lt_semver(v1, v2):
-        #     lv1 = [int(v) for v in v1.split(".")]
-        #     lv2 = [int(v) for v in v2.split(".")]
-        #     min_length = min(len(lv1), len(lv2))
-        #     return lv1[:min_length] < lv2[:min_length]
+        def lazy_lt_semver(v1, v2):
+            lv1 = [int(v) for v in v1.split(".")]
+            lv2 = [int(v) for v in v2.split(".")]
+            min_length = min(len(lv1), len(lv2))
+            return lv1[:min_length] < lv2[:min_length]
 
-        # minimum_version = self._compilers_minimum_version.get(str(self.settings.compiler), False)
-        # if not minimum_version:
-        #     self.output.warn("{} {} requires C++17. Your compiler is unknown. Assuming it supports C++17.".format(self.name, self.version))
-        # elif lazy_lt_semver(str(self.settings.compiler.version), minimum_version):
-        #     raise ConanInvalidConfiguration("{} {} requires C++17, which your compiler does not support.".format(self.name, self.version))
+        minimum_version = self._compilers_minimum_version.get(str(self.settings.compiler), False)
+        if not minimum_version:
+            self.output.warn("{} {} requires C++17. Your compiler is unknown. Assuming it supports C++17.".format(self.name, self.version))
+        elif lazy_lt_semver(str(self.settings.compiler.version), minimum_version):
+            raise ConanInvalidConfiguration("{} {} requires C++17, which your compiler does not support.".format(self.name, self.version))
+
+        compiler_version = tools.Version(self.settings.compiler.version)
+        if self.settings.compiler == "clang" and self.settings.compiler.get_safe("libcxx") == "libstdc++" and \
+           (compiler_version < "8" or compiler_version > "9"):
+            raise ConanInvalidConfiguration("{} {} requires filesystem header, not available in clang {} with libsdtc++".format(self.name, self.version, self.settings.compiler.version))
 
     def package_id(self):
         self.info.header_only()
