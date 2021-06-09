@@ -15,10 +15,20 @@ class TaoCPPPEGTLConan(ConanFile):
               "parsing", "cpp17", "cpp11", "grammar")
     no_copy_source = True
     settings = "compiler"
+    options = {
+        "boost_filesystem": [True, False],
+    }
+    default_options = {
+        "boost_filesystem": True,
+    }
 
     @property
     def _source_subfolder(self):
         return "source_subfolder"
+
+    def requirements(self):
+        if self.options.boost_filesystem:
+            self.requires("boost/1.76.0")
 
     @property
     def _compilers_minimum_version(self):
@@ -26,7 +36,7 @@ class TaoCPPPEGTLConan(ConanFile):
             "gcc": "8",
             "Visual Studio": "15.7",
             "clang": "6",
-            "apple-clang": "11",
+            "apple-clang": "10",
         }
 
     def validate(self):
@@ -45,10 +55,8 @@ class TaoCPPPEGTLConan(ConanFile):
         elif lazy_lt_semver(str(self.settings.compiler.version), minimum_version):
             raise ConanInvalidConfiguration("{} {} requires C++17, which your compiler does not support.".format(self.name, self.version))
 
-        compiler_version = tools.Version(self.settings.compiler.version)
-        if self.settings.compiler == "clang" and self.settings.compiler.get_safe("libcxx") == "libstdc++" and \
-           (compiler_version < "8" or compiler_version > "9"):
-            raise ConanInvalidConfiguration("{} {} requires filesystem header, not available in clang {} with libsdtc++".format(self.name, self.version, self.settings.compiler.version))
+        if self.options.boost_filesystem and (self.options["boost"].header_only or self.options["boost"].without_filesystem):
+            raise ConanInvalidConfiguration("{} requires non header-only boost with filesystem component".format(self.name))
 
     def package_id(self):
         self.info.header_only()
@@ -68,3 +76,6 @@ class TaoCPPPEGTLConan(ConanFile):
         self.cpp_info.names["cmake_find_package_multi"] = "taocpp"
         self.cpp_info.components["_taocpp-pegtl"].names["cmake_find_package"] = "pegtl"
         self.cpp_info.components["_taocpp-pegtl"].names["cmake_find_package_multi"] = "pegtl"
+        if self.options.boost_filesystem:
+            self.cpp_info.components["_taocpp-pegtl"].requires.append("boost::filesystem")
+            self.cpp_info.components["_taocpp-pegtl"].defines.append("TAO_PEGTL_BOOST_FILESYSTEM")
